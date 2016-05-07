@@ -73,6 +73,7 @@ public class CBattleRoom : MonoBehaviour
 		reset();
 	}
 
+	// 초기화
     private void reset()
     {
 		// Debug.Log("short maxValue : " + short.MaxValue);
@@ -190,12 +191,12 @@ public class CBattleRoom : MonoBehaviour
 					on_click(index);
 				}
 				
-				
+				// 셀 화면 표시.
 				if(this.board[index] != short.MaxValue)
 				{
 					int player_index = this.board[index];
 					GUI.DrawTexture(cell_rect, this.img_players[player_index]);
-									
+														
 					if(this.current_player_index == player_index)
 					{
 						GUI.DrawTexture(cell_rect, this.focus_cell);
@@ -283,7 +284,9 @@ public class CBattleRoom : MonoBehaviour
 				break;			
 		}		
     }
-
+	
+	// 공격 시작.
+	// 1칸 - 복제, 2칸 - 이동 
     private IEnumerator on_selected_cell_to_attack(short cell)
     {
     	byte distance = CHelper.howfar_from_clicked_cell(this.selected_cell, cell);
@@ -311,11 +314,12 @@ public class CBattleRoom : MonoBehaviour
 		Debug.Log("gameover!");
 	}
 	
-	// 단계 종료 
+	// 턴(단계) 종료 
 	void phase_end()
 	{
 		CPlayer victim_player = this.players[this.current_player_index];
 		
+		// 플레이어변경.
 		if(this.current_player_index == 0)
 		{
 			this.current_player_index = 1;
@@ -325,32 +329,38 @@ public class CBattleRoom : MonoBehaviour
 			this.current_player_index = 0;						
 		}
 		
+		// 공격 가능 여부 판단.
 		if(!CHelper.can_play_more(this.table_board, this.players, this.current_player_index))
 		{
 			game_over();
 			return;	
 		}		
 		
+		// step 변경.
 		CPlayer attacker_player = this.players[this.current_player_index];
 		if(attacker_player.state == PLAYER_STATE.AI)
 		{
+			// ai 일때.
 			this.step = 2;
 			StartCoroutine(play_agent(attacker_player, victim_player));
 		}
 		else
 		{
+			// player 일때.
 			this.step = 0;						
 		}
 		
+		// 공격 가능 셀 초기화.
 		this.available_attack_cells.Clear();
 	}
 	
+	// 적 인공지능 시작.
 	IEnumerator play_agent(CPlayer attacker_player, CPlayer victim_player)
 	{		
 		CellInfo choice = attacker_player.run_agent(this.table_board, this.players, victim_player.cell_indexes);
 		yield return new WaitForSeconds(0.5f);
 		
-		Debug.Log(string.Format("{0} -> {1} = {2}", choice.from_cell, choice.to_cell, choice.score));
+		//Debug.Log(string.Format("{0} -> {1} = {2}", choice.from_cell, choice.to_cell, choice.score));
 		this.selected_cell = choice.from_cell;
 		StartCoroutine(on_selected_cell_to_attack(choice.to_cell));		
 	}
@@ -453,7 +463,8 @@ public class CBattleRoom : MonoBehaviour
 		yield return new WaitForSeconds(0.5f);
 		
 		// 근처에 있는 상대방 셀을 구합니다.
-		List<short> neighbors = CHelper.find_neighbor_cells(cell, other_player.cell_indexes, 1);
+		List<short> neighbors = 
+			CHelper.find_neighbor_cells(cell, other_player.cell_indexes, 1);
 		foreach(short obj in neighbors)
 		{
 			// 상대방 셀을 하나씩 나의 셀로 만들어 줍니다.
@@ -467,6 +478,7 @@ public class CBattleRoom : MonoBehaviour
 		}		
 	}
 
+	// 공격가능 셀 초기화.
     private void clear_available_attacking_cells()
     {
 		this.available_attack_cells.Clear();
