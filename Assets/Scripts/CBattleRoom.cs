@@ -93,6 +93,15 @@ public class CBattleRoom : MonoBehaviour
 			this.board.Add(short.MaxValue);
 			this.table_board.Add((short)i);
 		}
+		
+		this.players.ForEach(obj => {
+			obj.cell_indexes.ForEach(cell => {
+				this.board[cell] = obj.player_index;
+			});
+		});
+		
+		this.current_player_index = 0;
+		this.step = 0;
     }
 	
 	// 화면에 그려주기.
