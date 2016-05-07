@@ -141,4 +141,38 @@ public static class CHelper
 	{
 		return new Vector2(calc_row(cell), calc_col(cell));
 	}
+	
+	public static byte howfar_from_clicked_cell(short basis_cell, short cell)
+	{
+		// row = 행 세로
+		// col = 열 가로
+		short row = (short)(basis_cell / CBattleRoom.COL_COUNT);
+		short col = (short)(basis_cell % CBattleRoom.COL_COUNT);
+		Vector2 basis_pos = new Vector2(col, row);
+		
+		row = (short)(cell / CBattleRoom.COL_COUNT);
+		col = (short)(cell % CBattleRoom.COL_COUNT);
+		Vector2 cell_pos = new Vector2(col, row);
+		
+		Vector2 distance = (basis_pos - cell_pos);
+		short x = (short)Mathf.Abs(distance.x);
+		short y = (short)Mathf.Abs(distance.y);
+		return (byte)Mathf.Max(x,y);
+	}
+	
+	// 플레이 가능 여부?
+	public static bool can_play_more(List<short> board, List<CPlayer> players, int current_player_index)
+	{
+		CPlayer current = players[current_player_index];
+		foreach(byte cell in current.cell_indexes)
+		{
+			if(CHelper.find_available_cells(cell, board, players).Count > 0)
+			{
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
 }

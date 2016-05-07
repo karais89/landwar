@@ -75,7 +75,24 @@ public class CBattleRoom : MonoBehaviour
 
     private void reset()
     {
-        // throw new NotImplementedException();
+		// Debug.Log("short maxValue : " + short.MaxValue);
+		
+		this.players.ForEach(obj => obj.clear());
+		this.players[0].add(6);
+		this.players[0].add(42);
+		// this.players[0].change_to_agent();
+		
+		this.players[1].add(0);
+		this.players[1].add(48);
+		this.players[1].change_to_agent();
+		
+		this.board.Clear();
+		this.table_board.Clear();
+		for(int i = 0 ; i < COL_COUNT * COL_COUNT; ++i)
+		{
+			this.board.Add(short.MaxValue);
+			this.table_board.Add((short)i);
+		}
     }
 	
 	// 화면에 그려주기.
@@ -218,7 +235,7 @@ public class CBattleRoom : MonoBehaviour
 					Debug.Log("go to step2");
 					
 					// 다음에 또 클릭 이벤트가 발생하면 step 1로 처리할 수 있도록 설정 해줍니다.
-					this.step = -1;
+					this.step = 1;
 					
 					// 이동 가능한 셀을 구해봅니다.
 					refresh_available_cells(this.selected_cell);
@@ -260,19 +277,85 @@ public class CBattleRoom : MonoBehaviour
 
     private IEnumerator on_selected_cell_to_attack(short cell)
     {
-        throw new NotImplementedException();
-    }
+    	byte distance = CHelper.howfar_from_clicked_cell(this.selected_cell, cell);
+		if(distance == 1)
+		{
+			// copy to cell
+			yield return StartCoroutine(reproduce(cell));
+			phase_end();
+		}
+		else if(distance == 2)
+		{
+			// move
+			this.board[this.selected_cell] = short.MaxValue;
+			this.players[this.current_player_index].remove(this.selected_cell);
+			yield return StartCoroutine(reproduce(cell));
+			phase_end();
+		}
+		
+		yield return 0;
+	}
 
-    private void refresh_available_cells(short selected_cell)
+	// 게임오버
+	void game_over()
+	{
+		Debug.Log("gameover!");
+	}
+	
+	// 단계 종료 
+	void phase_end()
+	{
+		CPlayer victim_player = this.players[this.current_player_index];
+		
+		if(this.current_player_index == 0)
+		{
+			this.current_player_index = 1;
+		}
+		else
+		{
+			this.current_player_index = 0;						
+		}
+		
+		if(!CHelper.can_play_more(this.table_board, this.players, this.current_player_index))
+		{
+			game_over();
+			return;	
+		}		
+		
+		CPlayer attacker_player = this.players[this.current_player_index];
+		if(attacker_player.state == PLAYER_STATE.AI)
+		{
+			this.step = 2;
+			StartCoroutine(play_agent(attacker_player, victim_player));
+		}
+		else
+		{
+			this.step = 0;						
+		}
+		
+		this.available_attack_cells.Clear();
+	}
+	
+	IEnumerator play_agent(CPlayer attacker_player, CPlayer victim_player)
+	{		
+		CellInfo choice = attacker_player.run_agent(this.table_board, this.players, victim_player.cell_indexes);
+		yield return new WaitForSeconds(0.5f);
+		
+		Debug.Log(string.Format("{0} -> {1} = {2}", choice.from_cell, choice.to_cell, choice.score));
+		this.selected_cell = choice.from_cell;
+		StartCoroutine(on_selected_cell_to_attack(choice.to_cell));		
+	}
+
+    private void refresh_available_cells(short cell)
     {
-        throw new NotImplementedException();
+		this.available_attack_cells = CHelper.find_available_cells(cell, this.table_board, this.players);
     }
 
 
     // 올바른 셀을 체크했는지 여부.
     private bool validate_begin_cell(short cell)
     {
-        throw new NotImplementedException();
+		return this.players[this.current_player_index].cell_indexes.Exists(obj => obj == cell);
     }
 	
 	/*
@@ -377,6 +460,6 @@ public class CBattleRoom : MonoBehaviour
 
     private void clear_available_attacking_cells()
     {
-        throw new NotImplementedException();
+		this.available_attack_cells.Clear();
     }
 }

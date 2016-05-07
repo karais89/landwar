@@ -9,8 +9,7 @@ public class CMainTitle : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 		// Resources.Load 함수를 쓸 때 리소스파일은 반드시 "Assets/Resources" 폴더 하위에 존재해야 합니다.
-		this.bg = Resources.Load("images/title_blue") as Texture;
-		
+		this.bg = Resources.Load("images/title_blue") as Texture;		
 		this.battleroom = GameObject.Find("BattleRoom");
 		this.battleroom.SetActive(false);		 
 	}
