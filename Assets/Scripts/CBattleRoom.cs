@@ -1,4 +1,12 @@
-﻿using UnityEngine;
+﻿/*
+	세균전 게임의 규칙은 아주 간단합니다.
+	자신의 셀을 하나 선택한 뒤,
+	한칸은 복제,
+	두칸은 이동의 규칙으로 캐릭터를 움직일 수 있습니다.
+	움직인 곳 주위 8칸에 상대방의 캐릭터가 있다면
+	전염시켜서 잡아 먹을 수 있습니다.
+*/
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System;
@@ -23,6 +31,7 @@ public class CBattleRoom : MonoBehaviour
 	List<short> board;
 	
 	int current_player_index;
+	int step;
 	
 	void Awake()	
 	{
@@ -182,7 +191,191 @@ public class CBattleRoom : MonoBehaviour
 		GUI.EndGroup();
     }
 
-    private void on_click(short index)
+	short selected_cell = short.MaxValue;
+    private void on_click(short cell)
+    {
+		// 일반적인 턴제 퍼즐 게임에서 단계를 나눠 처리하는 방법은
+		// 이런식으로 각 단계에 따른 변수 값을 바꿔서 처리합니다.
+		
+		// 0일때는 무슨무슨 작업
+		// 1일때는 무슨무슨 작업
+		// 이런식으로 말이죠.
+		
+		// 조금 복잡하고 세련되게 간다면 FSM같은것을 써서 만들 수도 있겠지요.
+		// 여기서는 간단한 게임이므로 그냥 switch와 정수값으로 구분하였습니다.
+		// (하지만 테스트 프로그램이라고 정수값을 그냥 쓰기보다는 enum으로 정의해서 쓰는 것이 좋습니다.)
+		
+		// Debug.Log(cell);
+		
+		switch (this.step)
+		{
+			case 0:
+				// 첫번째 단계 : 자신의 셀을 하나 선택한 이후의 처리 부분 입니다.
+				// 올바른 셀을 선택했는지 체크해 줘야 겠죠?
+				if(validate_begin_cell(cell))
+				{
+					this.selected_cell = cell;
+					Debug.Log("go to step2");
+					
+					// 다음에 또 클릭 이벤트가 발생하면 step 1로 처리할 수 있도록 설정 해줍니다.
+					this.step = -1;
+					
+					// 이동 가능한 셀을 구해봅니다.
+					refresh_available_cells(this.selected_cell);
+				}
+				break;
+			
+			case 1:
+				{
+					// 두번째 단계 : 이동한 셀을 선택한 이후의 처리부분 입니다.
+					// 자신의 셀을 다시 선택한다면 이동 범위를 재설정 해 줍니다.
+					if(this.players[this.current_player_index].cell_indexes.Exists(obj => obj == cell))
+					{
+						this.selected_cell = cell;
+						refresh_available_cells(this.selected_cell);
+						break;
+					}
+					
+					// 다른 플레이어가 있는 셀은 선택할 수 없습니다.
+					foreach(CPlayer player in this.players)
+					{
+						if(player.cell_indexes.Exists(obj => obj == cell))
+						{
+							return;
+						}
+					}	
+					
+					this.step = 2;
+					
+					// 공격을 시작합니다.
+					StartCoroutine(on_selected_cell_to_attack(cell));			
+				}
+				break;
+				
+			case 2:
+				// playin AI now
+				break;			
+		}		
+    }
+
+    private IEnumerator on_selected_cell_to_attack(short cell)
+    {
+        throw new NotImplementedException();
+    }
+
+    private void refresh_available_cells(short selected_cell)
+    {
+        throw new NotImplementedException();
+    }
+
+
+    // 올바른 셀을 체크했는지 여부.
+    private bool validate_begin_cell(short cell)
+    {
+        throw new NotImplementedException();
+    }
+	
+	/*
+	★ 여기서 처음 등장하는 특이한 함수가 하나 있습니다.
+	그것은 바로 StartCoroutine
+	유니티 엔진에서는 코루틴이라는 아주 재미있는 기능을 제공합니다.
+
+	보통 특정한 시나리오를 기술하는데 아주 유용하게 쓸 수 있는 기능이죠.
+	이 게임을 예로 든다면
+
+	단계1. 캐릭터 이동
+	단계2. 이동하는 모션 재생
+	단계3. 주위의 적들을 하나씩 잡아먹는 이펙트 출력
+	단계4. 턴 종료.
+
+	이렇게 순차적으로 공격 프로세스가 이루어 질 텐데 
+	각 단계마다 적절한 대기 시간이 필요하게 됩니다.
+	이동은 1초동안, 적들을 잡아먹는 이펙트는 0.5초씩 이런식으로 말이죠.
+
+	전통적인 방식으로 코딩한다면 타이머와 콜백함수를 써서 만들 수 있습니다.
+	하지만 이 방식의 단점은 잘 알고 계시듯이 
+	로직의 분산,
+	변수 공유의 까다로움(멤버 변수나, 제3의 객체를 사용해야 함)
+	코딩의 난잡함
+	디버깅의 귀찮음 등이 있습니다.
+
+	같은 로직을 코루틴으로 구성한다면 이 모든 단계들이
+	하나의 함수 안에 들어가게 됩니다.
+	즉, 관련된 로직을 분산시키지 않고 모아놓을 수 있으며,
+	변수 공유도 지역변수 쓰듯이 쓰면 되는 것이지요.
+	예를들면
+
+	while(액션이 끝날때까지)
+	{
+		플레이어 이동
+		1초간 대기
+
+		상대방 캐릭터 잡아먹기
+		0.5초간 대기
+	}
+
+	2초간 대기
+	턴 종료
+
+
+	이런식으로 대본 쓰듯이 쭉 나열하는것이 가능해 집니다.
+	이 게임에서 사용된 실제 코드를 보겠습니다.
+		
+	yield문을 만나면 그 즉시 함수의 수행이 멈추고 제어권을 반환하게 됩니다.
+	마치 함수를 빠져나온 것처럼 말이죠!
+
+	그리고 지정된 시간이 지나면 다시 yield다음 라인부터 수행이 이루어 집니다.
+	마치 타이머와 콜백함수를 써서 임의의 코드를 실행하는것과 같다고 할 수 있지요.
+
+	시간지연이 필요한 연출효과를 나타낼때 아주 유용하게 쓰일 수 있는 기능입니다.
+	제가 예전에 작업했던 프로젝트에서도 많이 사용하여 재미를 쏠쏠하게 봤습니다.
+
+	● 레이싱 게임에서 피트인을 하는 장면을 구현하는 코드
+	IEnumerator run_pitin()  
+	{  
+		자동차 입장 모션 재생()  
+		yield return new WaitForSeconds(3.0f);  
+	
+		피트인 에니메이션 연출()  
+		yield return new WaitForSeconds(7.0f);  
+	
+		퇴장 모션 재생()
+		yield return new WaitForSeconds(2.0f);  
+	}  	
+	*/
+	IEnumerator reproduce(short cell)
+	{
+		CPlayer current_player = this.players[this.current_player_index];
+		CPlayer other_player = this.players.Find(obj => obj.player_index != this.current_player_index);
+		
+		clear_available_attacking_cells();	
+		
+		// 0.5초간 대기 후 다음라인 부터 이어서 수행.
+		yield return new WaitForSeconds(0.5f);
+		
+		// 이동한 셀을 플레이어의 셀로 넣어준다.
+		this.board[cell] = current_player.player_index;
+		current_player.add(cell);
+		
+		// 0.5초간 대기 후 다음라인부터 이어서 수행
+		yield return new WaitForSeconds(0.5f);
+		
+		// 근처에 있는 상대방 셀을 구합니다.
+		List<short> neighbors = CHelper.find_neighbor_cells(cell, other_player.cell_indexes, 1);
+		foreach(short obj in neighbors)
+		{
+			// 상대방 셀을 하나씩 나의 셀로 만들어 줍니다.
+			this.board[obj] = current_player.player_index;
+			current_player.add(obj);
+			
+			other_player.remove(obj);
+			
+			// 하나를 먹었으면 0.2초간 대기 후 다음으로 진행합니다.
+			yield return new WaitForSeconds(0.2f);
+		}		
+	}
+
+    private void clear_available_attacking_cells()
     {
         throw new NotImplementedException();
     }
